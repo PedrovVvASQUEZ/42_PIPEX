@@ -1,94 +1,92 @@
 # Pipex
 
-Pipex est un projet de l’école 42 écrit en C. Il reproduit le fonctionnement d’un pipeline shell simple reliant deux commandes, avec redirection de l’entrée et de la sortie :
+Pipex is a 42 school project written in C. It reproduces a simple shell pipeline that connects two commands, with input and output redirection:
 
 ```text
-< fichier_entrée commande1 | commande2 > fichier_sortie
+< input_file command1 | command2 > output_file
 ```
 
-Le programme met en pratique la création de processus (`fork`), les tubes (`pipe`), les redirections de descripteurs (`dup2`) et le lancement de commandes (`execve`).
+The project explores process creation (`fork`), pipes (`pipe`), file descriptor redirection (`dup2`), and command execution (`execve`).
 
-## Fonctionnalités
+## Features
 
-- Exécute deux commandes successivement, en transmettant la sortie de la première à l’entrée de la seconde.
-- Lit l’entrée depuis un fichier et crée ou tronque le fichier de sortie.
-- Recherche les exécutables dans les répertoires définis par la variable d’environnement `PATH`.
-- Accepte également un chemin de commande contenant `/`.
-- Attend les processus enfants et renvoie le statut de la dernière commande.
+- Runs two commands in sequence, passing the first command's output to the second command.
+- Reads input from a file and creates or truncates the output file.
+- Searches for executables in the directories listed in the `PATH` environment variable.
+- Also accepts command paths that contain `/`.
+- Waits for the child processes and returns the last command's exit status.
 
-## Prérequis
+## Requirements
 
-- Un environnement Unix/Linux avec les appels système utilisés par le projet.
-- `make` et un compilateur C compatible avec `cc`.
+- A Unix-like environment with the system calls used by the project.
+- `make` and a C compiler available as `cc`.
 
-La bibliothèque `pedro_lib` utilisée par le projet est incluse dans le dépôt.
+The `pedro_lib` library used by the project is included in the repository.
 
-## Compilation
+## Build
 
-À la racine du dépôt :
+From the repository root, run:
 
 ```sh
 make
 ```
 
-La compilation produit l’exécutable `pipex` à la racine du projet.
-
-Commandes de nettoyage disponibles :
+This builds the `pipex` executable in the repository root. The following cleanup targets are also available:
 
 ```sh
-make clean   # supprime les fichiers objets
-make fclean  # supprime également l’exécutable et la bibliothèque compilée
-make re      # nettoie puis recompile
+make clean   # remove object files
+make fclean  # also remove the executable and compiled library
+make re      # clean and rebuild
 ```
 
-## Utilisation
+## Usage
 
 ```sh
-./pipex fichier_entrée "commande1 avec arguments" "commande2 avec arguments" fichier_sortie
+./pipex input_file "command1 with arguments" "command2 with arguments" output_file
 ```
 
-Exemple :
+For example:
 
 ```sh
 ./pipex input.txt "grep 42" "wc -l" output.txt
 ```
 
-Cette invocation correspond à l’opération shell suivante :
+This is equivalent to the following shell operation:
 
 ```sh
 < input.txt grep 42 | wc -l > output.txt
 ```
 
-Le programme attend exactement quatre paramètres après `./pipex` : le fichier d’entrée, la première commande, la deuxième commande et le fichier de sortie.
+The program expects exactly four arguments after `./pipex`: the input file, the first command, the second command, and the output file.
 
-## Fonctionnement
+## How it works
 
-1. Le processus parent prépare un tube et crée un processus enfant pour chaque commande.
-2. Le premier enfant redirige son entrée depuis le fichier d’entrée et sa sortie vers le tube.
-3. Le second enfant lit depuis ce tube et redirige sa sortie vers le fichier de sortie.
-4. Chaque enfant recherche puis exécute sa commande ; le parent attend la fin des processus.
+1. The parent process creates a pipe and forks a child process for each command.
+2. The first child redirects its input from the input file and its output to the pipe.
+3. The second child reads from the pipe and redirects its output to the output file.
+4. Each child locates and executes its command; the parent waits for the children to finish.
 
 ```mermaid
 flowchart LR
-	IN[Fichier d’entrée] --> C1[Commande 1]
-	C1 --> P[Tube]
-	P --> C2[Commande 2]
-	C2 --> OUT[Fichier de sortie]
+    IN[Input file] --> C1[Command 1]
+    C1 --> P[Pipe]
+    P --> C2[Command 2]
+    C2 --> OUT[Output file]
 ```
 
-## Organisation du code
+## Code structure
 
-- `srcs_mandatory/pipex.c` : valide le nombre d’arguments, initialise le programme et orchestre les processus.
-- `srcs_mandatory/init_struct.c` : place les commandes, les fichiers et l’environnement dans la structure de données.
-- `srcs_mandatory/child_process.c` et `srcs_mandatory/redirector.c` : configurent chaque processus enfant et ses redirections.
-- `srcs_mandatory/file_opener.c` : ouvre les fichiers d’entrée et de sortie.
-- `srcs_mandatory/cmd_exec.c`, `srcs_mandatory/cmd_path.c` et `srcs_mandatory/find_env.c` : découpent, localisent et exécutent les commandes.
-- `srcs_mandatory/wait_da_boy.c` : attend les processus et récupère le statut final.
-- `Includes/pipex.h` : définit la structure et les prototypes du projet.
-- `Libraries/pedro_lib/` : bibliothèque C embarquée, notamment utilisée pour les fonctions de chaînes de caractères.
+- `srcs_mandatory/pipex.c`: validates the argument count, initializes the program, and coordinates the processes.
+- `srcs_mandatory/init_struct.c`: stores the commands, file names, and environment in the project structure.
+- `srcs_mandatory/child_process.c` and `srcs_mandatory/redirector.c`: configure child processes and their redirections.
+- `srcs_mandatory/file_opener.c`: opens the input and output files.
+- `srcs_mandatory/cmd_exec.c`, `srcs_mandatory/cmd_path.c`, and `srcs_mandatory/find_env.c`: split, locate, and execute commands.
+- `srcs_mandatory/wait_da_boy.c`: waits for the processes and retrieves the final status.
+- `Includes/pipex.h`: defines the project structure and function prototypes.
+- `Libraries/pedro_lib/`: bundled C library, used primarily for string utilities.
 
-## Limites
+## Limitations
 
-Pipex n’interprète pas les commandes comme un shell complet. Les commandes sont séparées sur les espaces ; les guillemets, les expansions de variables, les jokers et les opérateurs shell ne sont donc pas interprétés par Pipex. Les guillemets de l’exemple servent au shell appelant à transmettre chaque commande comme un seul argument.
+Pipex does not parse commands like a full shell. It splits each command on spaces, so quoting within a command, variable expansion, wildcards, and shell operators are not interpreted by Pipex. Quotes in the example are handled by the calling shell to pass each command as a single argument.
 
-Ce dépôt contient l’implémentation obligatoire à deux commandes ; la partie bonus n’est pas incluse dans les sources présentées ici.
+This repository contains the mandatory two-command implementation; the bonus implementation is not included.
